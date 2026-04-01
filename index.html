@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BTC Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FIREBASE CONFIG — REPLACE WITH YOUR NEW PROJECT CREDENTIALS
+     Go to: console.firebase.google.com → New Project → Web App
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "YOUR_API_KEY",
+    authDomain:        "YOUR_PROJECT.firebaseapp.com",
+    projectId:         "YOUR_PROJECT_ID",
+    storageBucket:     "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId:             "YOUR_APP_ID"
+  };
+  // Set to true to run with demo data (no Firebase needed for testing UI)
+  const DEMO_MODE = true;
+</script>
+
+<style>
+/* ── RESET & BASE ─────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0c0e14;--surface:#12151e;--surface2:#191d28;--surface3:#1f2430;
+  --border:#252a38;--border2:#2e3446;
+  --accent:#f5a623;--accent2:#e8743b;--accent3:#4fc3f7;
+  --green:#4caf82;--red:#e05c5c;--purple:#9c6bff;--blue:#4fc3f7;
+  --text:#e8eaf0;--text2:#a0a8be;--text3:#606880;
+  --card:#13161f;--card2:#171b25;
+  --font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif;
+  --r:10px;--r2:14px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+button{font-family:var(--font-body);cursor:pointer}
+input,select,textarea{font-family:var(--font-body);outline:none}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.fade-up{animation:fadeUp .25s ease forwards}
+.pulse{animation:pulse 2s infinite}
+
+/* ── LOGIN ────────────────────────────────────────────── */
+#login-screen{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;z-index:1000;
+}
+.login-card{
+  width:100%;max-width:380px;margin:1rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
+  overflow:hidden;
+}
+.login-top{
+  background:linear-gradient(135deg,#1a1f2e 0%,#0f1219 100%);
+  padding:2rem 2rem 1.5rem;text-align:center;
+  border-bottom:1px solid var(--border);
+}
+.login-logo{font-family:var(--font-head);font-size:26px;font-weight:800;letter-spacing:1px;margin-bottom:4px}
+.login-logo span{color:var(--accent)}
+.login-sub{font-size:12px;color:var(--text3);letter-spacing:.5px}
+.login-body{padding:1.5rem 2rem}
+.login-field{margin-bottom:1rem}
+.login-label{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;display:block}
+.login-input{
+  width:100%;padding:10px 14px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);
+  color:var(--text);font-size:14px;transition:border-color .2s;
+}
+.login-input:focus{border-color:var(--accent)}
+.login-btn{
+  width:100%;padding:12px;margin-top:.5rem;
+  background:var(--accent);border:none;border-radius:var(--r);
+  color:#000;font-size:14px;font-weight:700;letter-spacing:.3px;
+  transition:opacity .2s;
+}
+.login-btn:hover{opacity:.9}
+.login-err{color:var(--red);font-size:12px;margin-top:.5rem;display:none;text-align:center}
+.demo-badge{
+  margin-top:1rem;text-align:center;
+  font-size:11px;color:var(--text3);
+  padding:8px;background:rgba(245,166,35,.06);border-radius:6px;border:1px solid rgba(245,166,35,.15);
+}
+.demo-badge b{color:var(--accent)}
+
+/* ── MAIN APP ─────────────────────────────────────────── */
+#app{display:none;height:100vh;flex-direction:column}
+#app.visible{display:flex}
+
+/* ── HEADER ───────────────────────────────────────────── */
+.app-header{
+  height:52px;flex-shrink:0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;position:relative;z-index:50;
+}
+.header-logo{font-family:var(--font-head);font-size:16px;font-weight:800;letter-spacing:.5px}
+.header-logo span{color:var(--accent)}
+.header-center{display:flex;align-items:center;gap:8px}
+.header-badge{
+  background:var(--surface2);border:1px solid var(--border);
+  padding:3px 10px;border-radius:20px;font-size:11px;color:var(--text2);
+}
+.header-badge b{color:var(--accent)}
+.demo-pill{
+  background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);
+  padding:2px 8px;border-radius:20px;font-size:10px;color:var(--accent);font-weight:600;
+}
+.header-right{display:flex;align-items:center;gap:10px}
+.user-av{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:11px;color:#000;cursor:pointer;
+}
+.logout-btn{
+  padding:4px 10px;background:transparent;border:1px solid var(--border);
+  border-radius:6px;color:var(--text2);font-size:11px;
+  transition:all .15s;
+}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* ── NAV TABS ─────────────────────────────────────────── */
+.nav-tabs{
+  flex-shrink:0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;overflow-x:auto;padding:0 8px;
+}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{
+  flex-shrink:0;padding:12px 14px;
+  font-size:12.5px;font-weight:500;color:var(--text2);
+  cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .15s;white-space:nowrap;background:transparent;border-left:none;border-right:none;border-top:none;
+}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.nav-tab .tab-badge{
+  display:inline-block;background:var(--red);color:#fff;
+  font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px;vertical-align:middle;
+}
+.nav-tab .tab-badge.amber{background:var(--accent);color:#000}
+.nav-tab .tab-badge.green{background:var(--green)}
+
+/* ── BODY AREA ────────────────────────────────────────── */
+.app-body{flex:1;overflow-y:auto;overflow-x:hidden}
+.page{display:none;padding:16px;animation:fadeUp .2s ease}
+.page.active{display:block}
+
+/* ── COMPONENTS ───────────────────────────────────────── */
+/* KPI row */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.kpi-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:12px 14px;position:relative;overflow:hidden;
+}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-r::after{background:var(--red)}
+.kpi-a::after{background:var(--accent)}
+.kpi-g::after{background:var(--green)}
+.kpi-b::after{background:var(--blue)}
+.kpi-p::after{background:var(--purple)}
+.kpi-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.kpi-val{font-family:var(--font-head);font-size:20px;font-weight:700}
+.kpi-val.r{color:var(--red)}.kpi-val.a{color:var(--accent)}.kpi-val.g{color:var(--green)}.kpi-val.b{color:var(--blue)}.kpi-val.p{color:var(--purple)}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:3px}
+
+/* Section card */
+.sec-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;margin-bottom:14px}
+.sec-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--border);
+}
+.sec-title{font-family:var(--font-head);font-size:13px;font-weight:700}
+.sec-action{font-size:11px;color:var(--accent);cursor:pointer;font-weight:600;background:none;border:none;padding:0}
+
+/* Table */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{
+  font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;
+  font-weight:600;padding:8px 14px;text-align:left;
+  background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);
+}
+.data-table td{padding:9px 14px;font-size:12.5px;border-bottom:1px solid rgba(37,42,56,.5)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:rgba(255,255,255,.02);cursor:pointer}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.2px}
+.b-r{background:rgba(224,92,92,.15);color:#e05c5c;border:1px solid rgba(224,92,92,.3)}
+.b-a{background:rgba(245,166,35,.12);color:#f5a623;border:1px solid rgba(245,166,35,.3)}
+.b-g{background:rgba(76,175,130,.12);color:#4caf82;border:1px solid rgba(76,175,130,.3)}
+.b-b{background:rgba(79,195,247,.1);color:#4fc3f7;border:1px solid rgba(79,195,247,.25)}
+.b-p{background:rgba(156,107,255,.1);color:#9c6bff;border:1px solid rgba(156,107,255,.25)}
+.b-gr{background:rgba(96,104,128,.15);color:#a0a8be;border:1px solid rgba(96,104,128,.3)}
+
+/* WA button */
+.wa-btn{
+  display:inline-flex;align-items:center;gap:3px;
+  background:rgba(37,211,102,.1);color:#25d366;
+  border:1px solid rgba(37,211,102,.25);border-radius:5px;
+  padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;
+  transition:background .15s;white-space:nowrap;
+}
+.wa-btn:hover{background:rgba(37,211,102,.2)}
+
+/* Tag */
+.tag{
+  display:inline-block;background:var(--surface2);border:1px solid var(--border);
+  padding:1px 6px;border-radius:4px;font-size:10px;color:var(--text2);
+}
+
+/* Grid helpers */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+/* Page header */
+.page-hd{margin-bottom:16px}
+.page-hd h2{font-family:var(--font-head);font-size:18px;font-weight:700;margin-bottom:3px}
+.page-hd p{font-size:12px;color:var(--text2)}
+
+/* Search bar */
+.search-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.search-input{
+  flex:1;min-width:180px;padding:8px 12px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);
+  color:var(--text);font-size:13px;transition:border-color .2s;
+}
+.search-input:focus{border-color:var(--accent)}
+.filter-sel{
+  padding:7px 10px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text2);font-size:12px;cursor:pointer;
+}
+
+/* Buttons */
+.btn{
+  padding:7px 14px;border-radius:var(--r);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .15s;border:1px solid;
+}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#000}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:transparent;border-color:var(--border2);color:var(--text2)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:transparent;border-color:var(--red);color:var(--red)}
+.btn-success{background:rgba(76,175,130,.12);border-color:var(--green);color:var(--green)}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.form-input,.form-select,.form-textarea{
+  padding:8px 11px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text);font-size:13px;width:100%;
+  transition:border-color .2s;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent)}
+.form-textarea{resize:vertical;min-height:64px}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+
+/* Modal overlay */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);
+  z-index:200;display:none;align-items:center;justify-content:center;padding:1rem;
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
+  width:100%;max-width:520px;max-height:90vh;overflow-y:auto;
+}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+}
+.modal-title{font-family:var(--font-head);font-size:14px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--text2);font-size:18px;line-height:1;padding:2px 6px}
+.modal-body{padding:18px}
+
+/* Progress bar */
+.prog-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(37,42,56,.4)}
+.prog-row:last-child{border-bottom:none}
+.prog-name{font-size:12px;width:90px;flex-shrink:0}
+.prog-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.prog-val{font-size:11px;font-weight:600;width:45px;text-align:right;flex-shrink:0}
+
+/* Task item */
+.task-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 14px;border-bottom:1px solid rgba(37,42,56,.4);
+  transition:background .1s;
+}
+.task-item:last-child{border-bottom:none}
+.task-item:hover{background:rgba(255,255,255,.02)}
+.task-check{
+  width:16px;height:16px;border-radius:4px;
+  border:1.5px solid var(--border2);flex-shrink:0;margin-top:2px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .15s;
+}
+.task-check.done{background:var(--green);border-color:var(--green);color:#fff;font-size:10px}
+.task-text{font-size:12.5px;line-height:1.4;flex:1}
+.task-text.done{text-decoration:line-through;color:var(--text3)}
+.task-meta{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* Alert item */
+.alert-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;border-bottom:1px solid rgba(37,42,56,.4);
+}
+.alert-row:last-child{border-bottom:none}
+.alert-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.alert-text{font-size:12.5px;flex:1;line-height:1.4}
+.alert-date{font-size:11px;color:var(--text3);flex-shrink:0}
+
+/* Dealer card */
+.dealer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:14px}
+.dealer-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);
+  padding:13px;cursor:pointer;transition:border-color .15s;
+}
+.dealer-card:hover{border-color:var(--border2)}
+.dealer-name{font-weight:600;font-size:13px;margin-bottom:3px}
+.dealer-city{font-size:11px;color:var(--text2);margin-bottom:10px}
+.dealer-row{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:5px}
+.dealer-actions{display:flex;gap:6px;margin-top:10px}
+.d-btn{
+  flex:1;padding:5px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;font-size:11px;font-weight:600;cursor:pointer;
+  text-align:center;color:var(--text2);transition:all .15s;
+}
+.d-btn:hover{color:var(--text);border-color:var(--border2)}
+.d-btn.wa{background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.25);color:#25d366}
+
+/* Profile tabs */
+.prof-tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto}
+.prof-tab{
+  padding:10px 14px;font-size:12px;font-weight:500;color:var(--text2);
+  cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;
+  background:none;border-left:none;border-right:none;border-top:none;
+  transition:all .15s;
+}
+.prof-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Info grid */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.info-item{background:var(--surface2);border-radius:var(--r);padding:9px 12px}
+.info-lbl{font-size:10px;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.info-val{font-size:12.5px;font-weight:500}
+
+/* Timeline */
+.tl-item{display:flex;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(37,42,56,.4)}
+.tl-item:last-child{border-bottom:none}
+.tl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.tl-text{font-size:12px;line-height:1.5;flex:1}
+.tl-date{font-size:10px;color:var(--text3)}
+
+/* WA message preview */
+.wa-preview-box{
+  background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.2);
+  border-radius:var(--r);padding:14px;margin-top:12px;display:none;
+}
+.wa-preview-msg{
+  font-size:12.5px;line-height:1.7;color:var(--text);
+  white-space:pre-line;font-family:var(--font-body);
+}
+.wa-preview-actions{display:flex;gap:8px;margin-top:10px}
+
+/* Empty state */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text3)}
+.empty-state .es-icon{font-size:2rem;margin-bottom:.75rem;display:block}
+.empty-state p{font-size:13px}
+
+/* Responsive */
+@media(max-width:640px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .info-grid{grid-template-columns:1fr}
+  .data-table th:nth-child(n+4),.data-table td:nth-child(n+4){display:none}
+}
+@media(max-width:400px){
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .kpi-val{font-size:17px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN SCREEN ═══════════════════ -->
+<div id="login-screen">
+  <div class="login-card fade-up">
+    <div class="login-top">
+      <div class="login-logo">BTC <span>Command</span> Center</div>
+      <div class="login-sub">BARNALA TRADING CO. &nbsp;·&nbsp; INTERNAL PORTAL</div>
+    </div>
+    <div class="login-body">
+      <div class="login-field">
+        <label class="login-label">Email</label>
+        <input class="login-input" type="email" id="login-email" placeholder="you@email.com" autocomplete="email">
+      </div>
+      <div class="login-field">
+        <label class="login-label">Password</label>
+        <input class="login-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="login-btn" onclick="doLogin()">Sign In →</button>
+      <div class="login-err" id="login-err">Invalid email or password. Please try again.</div>
+      <div class="demo-badge">
+        <b>DEMO MODE ON</b> — Click Sign In with any email/password to explore with sample data
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN APP ═══════════════════════ -->
+<div id="app">
+
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="header-logo">BTC <span>CC</span></div>
+    <div class="header-center">
+      <div class="header-badge">Barnala Trading Co. &nbsp;·&nbsp; <b id="hdr-role">Admin</b></div>
+      <div class="demo-pill" id="demo-pill">DEMO</div>
+    </div>
+    <div class="header-right">
+      <div class="user-av" id="user-av">PS</div>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- NAV TABS -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('overview')">🏠 Overview</button>
+    <button class="nav-tab" onclick="showPage('od')">💰 OD Collections <span class="tab-badge" id="od-badge">14</span></button>
+    <button class="nav-tab" onclick="showPage('tasks')">✅ Staff Tasks <span class="tab-badge amber" id="task-badge">9</span></button>
+    <button class="nav-tab" onclick="showPage('crm')">🤝 CRM</button>
+    <button class="nav-tab" onclick="showPage('brands')">🏷️ Brands</button>
+  </div>
+
+  <!-- BODY -->
+  <div class="app-body">
+
+    <!-- ══════════════ OVERVIEW PAGE ══════════════ -->
+    <div class="page active" id="page-overview">
+      <div class="page-hd">
+        <h2 id="greeting">Good morning, Pankajj 👋</h2>
+        <p id="overview-sub">Loading your daily summary...</p>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-r"><div class="kpi-label">Total OD</div><div class="kpi-val r" id="ov-od">₹84.2L</div><div class="kpi-sub" id="ov-od-sub">14 dealers overdue</div></div>
+        <div class="kpi-card kpi-a"><div class="kpi-label">Tasks Today</div><div class="kpi-val a" id="ov-tasks">7/16</div><div class="kpi-sub">5 AMs active</div></div>
+        <div class="kpi-card kpi-g"><div class="kpi-label">Mar Collection</div><div class="kpi-val g" id="ov-coll">₹12L</div><div class="kpi-sub">+18% vs Feb</div></div>
+        <div class="kpi-card kpi-b"><div class="kpi-label">Total Dealers</div><div class="kpi-val b" id="ov-dealers">503</div><div class="kpi-sub">Across all zones</div></div>
+        <div class="kpi-card kpi-p"><div class="kpi-label">Brand Actions</div><div class="kpi-val p" id="ov-brands">3</div><div class="kpi-sub">Pending follow-ups</div></div>
+      </div>
+
+      <div class="grid2">
+        <!-- Critical OD -->
+        <div class="sec-card">
+          <div class="sec-head">
+            <span class="sec-title">🔴 Critical OD — Act Today</span>
+            <button class="sec-action" onclick="showPage('od')">View all →</button>
+          </div>
+          <table class="data-table" id="ov-od-table">
+            <thead><tr><th>Dealer</th><th>OD Amount</th><th>Ageing</th><th>Action</th></tr></thead>
+            <tbody id="ov-od-body"></tbody>
+          </table>
+        </div>
+        <!-- Today's Tasks -->
+        <div class="sec-card">
+          <div class="sec-head">
+            <span class="sec-title">✅ Today's Tasks</span>
+            <button class="sec-action" onclick="showPage('tasks')">View all →</button>
+          </div>
+          <div id="ov-tasks-list"></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <!-- AM Collection Progress -->
+        <div class="sec-card">
+          <div class="sec-head">
+            <span class="sec-title">📊 AM Collections — March</span>
+            <span class="tag" id="ov-month">March 2026</span>
+          </div>
+          <div id="ov-am-prog" style="padding:8px 0"></div>
+        </div>
+        <!-- Brand Alerts -->
+        <div class="sec-card">
+          <div class="sec-head">
+            <span class="sec-title">🏷️ Brand Alerts</span>
+            <button class="sec-action" onclick="showPage('brands')">View all →</button>
+          </div>
+          <div id="ov-brand-alerts"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ OD PAGE ══════════════ -->
+    <div class="page" id="page-od">
+      <div class="page-hd">
+        <h2>💰 OD Collections Follow-up</h2>
+        <p>Ageing-wise outstanding dues · Generate WhatsApp messages instantly</p>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-r"><div class="kpi-label">Total OD (All)</div><div class="kpi-val r">₹84.2L</div></div>
+        <div class="kpi-card kpi-a"><div class="kpi-label">Total OD (Lux)</div><div class="kpi-val a">₹38.4L</div></div>
+        <div class="kpi-card kpi-g"><div class="kpi-label">Collected Mar</div><div class="kpi-val g">₹12L</div></div>
+        <div class="kpi-card kpi-b"><div class="kpi-label">&gt;90 Days</div><div class="kpi-val b">₹9.2L</div></div>
+        <div class="kpi-card kpi-p"><div class="kpi-label">WA Sent Today</div><div class="kpi-val p" id="wa-sent-count">0</div></div>
+      </div>
+
+      <div class="sec-card">
+        <div class="sec-head">
+          <span class="sec-title">Overdue Dealers</span>
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 12px" onclick="openWABulk()">📱 Bulk WA Send</button>
+        </div>
+        <div class="search-row" style="padding:10px 14px 0;flex-wrap:wrap">
+          <input class="search-input" type="text" placeholder="🔍 Search dealer..." oninput="filterOD(this.value)" id="od-search">
+          <select class="filter-sel" onchange="filterODByAM(this.value)">
+            <option value="">All AMs</option>
+            <option>Abhishek</option><option>Deepak K</option><option>Vikram</option>
+            <option>Jatinder</option><option>Rakesh</option><option>Brij</option>
+          </select>
+          <select class="filter-sel" onchange="filterODByAge(this.value)">
+            <option value="">All ageing</option>
+            <option value="150">150+ days</option>
+            <option value="90">90+ days</option>
+            <option value="60">60+ days</option>
+            <option value="30">30+ days</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="od-table">
+            <thead><tr><th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th><th>Dealer</th><th>AM</th><th>Brand</th><th>0-30</th><th>31-60</th><th>61-90</th><th>90+</th><th>Total OD</th><th>Ageing</th><th>Action</th></tr></thead>
+            <tbody id="od-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- WA Message Preview -->
+      <div class="wa-preview-box" id="wa-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;color:#25d366">📱 WhatsApp Message — Ready to Send</div>
+          <button onclick="document.getElementById('wa-box').style.display='none'" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px">✕</button>
+        </div>
+        <div class="wa-preview-msg" id="wa-msg-text"></div>
+        <div class="wa-preview-actions">
+          <button class="btn btn-success" onclick="copyWAMsg()">📋 Copy</button>
+          <button class="wa-btn" style="padding:7px 14px;font-size:12px" onclick="openWhatsApp()">Open WhatsApp ↗</button>
+          <button class="btn btn-secondary" style="font-size:11px" onclick="markWASent()">✓ Mark Sent</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TASKS PAGE ══════════════ -->
+    <div class="page" id="page-tasks">
+      <div class="page-hd" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>✅ Staff Tasks</h2>
+          <p>Assign, track and follow up on AM tasks</p>
+        </div>
+        <button class="btn btn-primary" onclick="openTaskModal()">+ Assign Task</button>
+      </div>
+
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card kpi-g"><div class="kpi-label">Done Today</div><div class="kpi-val g" id="tasks-done">0</div></div>
+        <div class="kpi-card kpi-a"><div class="kpi-label">Pending</div><div class="kpi-val a" id="tasks-pending">0</div></div>
+        <div class="kpi-card kpi-r"><div class="kpi-label">Overdue</div><div class="kpi-val r" id="tasks-overdue">0</div></div>
+        <div class="kpi-card kpi-b"><div class="kpi-label">Check-ins</div><div class="kpi-val b" id="tasks-checkins">4/5</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="sec-card">
+          <div class="sec-head">
+            <span class="sec-title">Today's Task List</span>
+            <div style="display:flex;gap:6px">
+              <select class="filter-sel" style="font-size:11px" onchange="filterTasksByAM(this.value)">
+                <option value="">All AMs</option>
+                <option>Abhishek</option><option>Deepak K</option><option>Vikram</option>
+                <option>Jatinder</option><option>Rakesh</option><option>Brij</option><option>Myself</option>
+              </select>
+            </div>
+          </div>
+          <div id="tasks-list"></div>
+        </div>
+
+        <div class="sec-card">
+          <div class="sec-head">
+            <span class="sec-title">AM Check-in Status</span>
+            <span class="tag" id="checkin-date"></span>
+          </div>
+          <div id="checkin-list"></div>
+        </div>
+      </div>
+
+      <!-- AM Collection Progress -->
+      <div class="sec-card">
+        <div class="sec-head">
+          <span class="sec-title">📊 AM Collection Progress</span>
+        </div>
+        <div id="am-progress" style="padding:8px 0"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════ CRM PAGE ══════════════ -->
+    <div class="page" id="page-crm">
+      <div class="page-hd" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2>🤝 Customer CRM</h2>
+          <p id="crm-sub">All dealers · All zones</p>
+        </div>
+        <button class="btn btn-primary" onclick="openCustomerModal()">+ Add Customer</button>
+      </div>
+
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card kpi-b"><div class="kpi-label">Total Dealers</div><div class="kpi-val b" id="crm-total">0</div></div>
+        <div class="kpi-card kpi-g"><div class="kpi-label">This Month</div><div class="kpi-val g" id="crm-new">0</div></div>
+        <div class="kpi-card kpi-r"><div class="kpi-label">OD Overdue</div><div class="kpi-val r" id="crm-od">0</div></div>
+        <div class="kpi-card kpi-a"><div class="kpi-label">Not Visited 30d</div><div class="kpi-val a" id="crm-unvisited">0</div></div>
+      </div>
+
+      <div class="search-row">
+        <input class="search-input" type="text" placeholder="🔍 Search name, city, phone, GST..." oninput="filterCRM(this.value)">
+        <select class="filter-sel" onchange="filterCRMByAM(this.value)" id="crm-am-filter">
+          <option value="">All AMs</option>
+          <option>Abhishek</option><option>Deepak K</option><option>Vikram</option>
+          <option>Jatinder</option><option>Rakesh</option><option>Brij</option>
+        </select>
+        <select class="filter-sel" onchange="filterCRMByBrand(this.value)">
+          <option value="">All brands</option>
+          <option>Ray-Ban</option><option>Burberry</option><option>Jimmy Choo</option>
+          <option>B&L</option><option>NVG</option><option>Inalsa</option>
+        </select>
+        <select class="filter-sel" onchange="filterCRMByCity(this.value)">
+          <option value="">All cities</option>
+          <option>Ludhiana</option><option>Patiala</option><option>Jalandhar</option>
+          <option>Amritsar</option><option>Bathinda</option><option>Hoshiarpur</option>
+        </select>
+      </div>
+
+      <div class="dealer-grid" id="crm-grid"></div>
+    </div>
+
+    <!-- ══════════════ BRANDS PAGE ══════════════ -->
+    <div class="page" id="page-brands">
+      <div class="page-hd">
+        <h2>🏷️ Brand & Supplier Follow-ups</h2>
+        <p>Claims, returns, DMS uploads, scheme communications</p>
+      </div>
+      <div class="grid3" id="brands-grid"></div>
+    </div>
+
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<!-- ═══════════════ MODALS ════════════════ -->
+
+<!-- TASK MODAL -->
+<div class="modal-bg" id="task-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Assign New Task</span>
+      <button class="modal-close" onclick="closeModal('task-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field" style="grid-column:1/-1">
+          <label class="form-label">Assign To</label>
+          <select class="form-select" id="task-am">
+            <option value="">Select AM</option>
+            <option>Abhishek Khosla</option><option>Deepak Kumar</option>
+            <option>Vikram Dhaliwal</option><option>Jatinder Kumar</option>
+            <option>Rakesh</option><option>Brij</option><option>Deepak Mukheja</option>
+            <option>Myself (Pankajj)</option>
+          </select>
+        </div>
+        <div class="form-field" style="grid-column:1/-1">
+          <label class="form-label">Task Description</label>
+          <textarea class="form-textarea" id="task-desc" placeholder="e.g. Collect payment from Mehta Optics Ludhiana — ₹1,24,903"></textarea>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Linked Dealer (optional)</label>
+          <input class="form-input" type="text" id="task-dealer" placeholder="e.g. Mehta Optics">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Brand</label>
+          <select class="form-select" id="task-brand">
+            <option value="">Select brand</option>
+            <option>Ray-Ban / Luxottica</option><option>Burberry</option>
+            <option>Jimmy Choo / Safilo</option><option>Bausch &amp; Lomb</option>
+            <option>NVG / NVD</option><option>Inalsa</option><option>General</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Task Type</label>
+          <select class="form-select" id="task-type">
+            <option>Payment collection</option><option>Dealer visit</option>
+            <option>Order follow-up</option><option>Brand / supplier</option>
+            <option>Report submission</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Priority</label>
+          <select class="form-select" id="task-priority">
+            <option value="normal">Normal</option>
+            <option value="urgent">Urgent</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Due Date</label>
+          <input class="form-input" type="date" id="task-due">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Recurring</label>
+          <select class="form-select" id="task-recur">
+            <option>One-time</option><option>Daily</option>
+            <option>Weekly</option><option>Monthly</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTask()">Assign Task →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER MODAL -->
+<div class="modal-bg" id="customer-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Add New Customer</span>
+      <button class="modal-close" onclick="closeModal('customer-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label">Firm / Shop Name</label>
+          <input class="form-input" type="text" id="cust-name" placeholder="e.g. Mehta Optics">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Owner Name</label>
+          <input class="form-input" type="text" id="cust-owner" placeholder="e.g. Ramesh Mehta">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Mobile Number</label>
+          <input class="form-input" type="tel" id="cust-mobile" placeholder="+91 98765 43210">
+        </div>
+        <div class="form-field">
+          <label class="form-label">WhatsApp Number</label>
+          <input class="form-input" type="tel" id="cust-wa" placeholder="Same or different">
+        </div>
+        <div class="form-field">
+          <label class="form-label">City</label>
+          <input class="form-input" type="text" id="cust-city" placeholder="e.g. Ludhiana">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Area / Zone</label>
+          <input class="form-input" type="text" id="cust-area" placeholder="e.g. Clock Tower">
+        </div>
+        <div class="form-field">
+          <label class="form-label">GST Number</label>
+          <input class="form-input" type="text" id="cust-gst" placeholder="15-digit GST" style="text-transform:uppercase">
+        </div>
+        <div class="form-field">
+          <label class="form-label">PAN Number</label>
+          <input class="form-input" type="text" id="cust-pan" placeholder="10-digit PAN" style="text-transform:uppercase">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Assigned AM</label>
+          <select class="form-select" id="cust-am">
+            <option value="">Select AM</option>
+            <option>Abhishek Khosla</option><option>Deepak Kumar</option>
+            <option>Vikram Dhaliwal</option><option>Jatinder Kumar</option>
+            <option>Rakesh</option><option>Brij</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Credit Limit (₹)</label>
+          <input class="form-input" type="text" id="cust-credit" placeholder="e.g. 1,00,000">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Credit Days</label>
+          <input class="form-input" type="text" id="cust-days" placeholder="e.g. 30">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Customer Since</label>
+          <input class="form-input" type="date" id="cust-since">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Brands Dealing In</label>
+          <select class="form-select" id="cust-brands">
+            <option>Ray-Ban / Luxottica</option><option>Burberry</option>
+            <option>Jimmy Choo</option><option>Bausch &amp; Lomb</option>
+            <option>NVG / NVD</option><option>Inalsa</option><option>Multiple</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label class="form-label">Shop Address</label>
+        <textarea class="form-textarea" id="cust-address" placeholder="Full shop address" style="min-height:48px"></textarea>
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label class="form-label">Internal Notes</label>
+        <textarea class="form-textarea" id="cust-notes" placeholder="Payment behaviour, relationship notes, important info..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeModal('customer-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveCustomer()">Save Customer →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER PROFILE MODAL -->
+<div class="modal-bg" id="profile-modal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-head" id="profile-modal-head">
+      <span class="modal-title" id="profile-modal-title">Customer Profile</span>
+      <button class="modal-close" onclick="closeModal('profile-modal')">✕</button>
+    </div>
+    <div id="profile-content"></div>
+  </div>
+</div>
+
+<!-- FIREBASE SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════
+   APP STATE
+══════════════════════════════════════════════ */
+const STATE = {
+  user: null, role: 'admin', amName: null,
+  currentPage: 'overview', demoMode: true,
+  waPhone: null, waCount: 0,
+  customers: [], tasks: [], brandActions: [], odData: []
+};
+
+/* ══════════════════════════════════════════════
+   DEMO DATA
+══════════════════════════════════════════════ */
+const DEMO = {
+  odData: [
+    {id:1,dealer:'Mehta Optics Ldh',am:'Abhishek',brand:'Luxottica',d0:0,d30:0,d60:0,d90:124903,total:124903,age:'150+',phone:'9876543210'},
+    {id:2,dealer:'Walia Optical Patiala',am:'Jatinder',brand:'Luxottica',d0:0,d30:0,d60:12000,d90:77210,total:89210,age:'120',phone:'9876543211'},
+    {id:3,dealer:'Arora Vision Jalandhar',am:'Deepak K',brand:'B&L',d0:8500,d30:15000,d60:44000,d90:0,total:67500,age:'90',phone:'9876543212'},
+    {id:4,dealer:'Singh Opticals Amritsar',am:'Vikram',brand:'Luxottica',d0:10000,d30:20000,d60:22340,d90:0,total:52340,age:'75',phone:'9876543213'},
+    {id:5,dealer:'Kumar Vision Bathinda',am:'Rakesh',brand:'Inalsa',d0:18000,d30:12000,d60:0,d90:0,total:30000,age:'45',phone:'9876543214'},
+    {id:6,dealer:'Patel Opticals Hoshiarpur',am:'Brij',brand:'B&L',d0:25000,d30:0,d60:0,d90:0,total:25000,age:'28',phone:'9876543215'},
+    {id:7,dealer:'Sharma Optical Ldh',am:'Abhishek',brand:'Luxottica',d0:15000,d30:18000,d60:0,d90:0,total:33000,age:'40',phone:'9876543216'},
+    {id:8,dealer:'Bedi Vision Jalandhar',am:'Deepak K',brand:'NVG',d0:12000,d30:0,d60:0,d90:0,total:12000,age:'20',phone:'9876543217'},
+  ],
+  tasks: [
+    {id:1,desc:'Collect payment from Mehta Optics Ldh',am:'Abhishek Khosla',dealer:'Mehta Optics',brand:'Ray-Ban',type:'Payment collection',priority:'critical',due:'today',status:'pending',recur:'One-time'},
+    {id:2,desc:'Demo Jimmy Choo SS2026 at Kapoor Opticians',am:'Vikram Dhaliwal',dealer:'Kapoor Opticians',brand:'Jimmy Choo',type:'Dealer visit',priority:'urgent',due:'today',status:'pending',recur:'One-time'},
+    {id:3,desc:'Send Ray-Ban price list to Ludhiana dealers',am:'Abhishek Khosla',dealer:'',brand:'Ray-Ban',type:'Other',priority:'normal',due:'today',status:'done',recur:'One-time'},
+    {id:4,desc:'Follow up B&L RMA approval with HO Mumbai',am:'Myself (Pankajj)',dealer:'',brand:'Bausch & Lomb',type:'Brand / supplier',priority:'urgent',due:'today',status:'pending',recur:'One-time'},
+    {id:5,desc:'NVG Tally import for March',am:'Deepak Mukheja',dealer:'',brand:'NVG / NVD',type:'Report submission',priority:'normal',due:'today',status:'pending',recur:'One-time'},
+    {id:6,desc:'Visit Jain Opticals — collect outstanding',am:'Vikram Dhaliwal',dealer:'Jain Opticals',brand:'Burberry',type:'Payment collection',priority:'urgent',due:'today',status:'done',recur:'One-time'},
+    {id:7,desc:'Submit weekly OD report',am:'Jatinder Kumar',dealer:'',brand:'General',type:'Report submission',priority:'normal',due:'today',status:'done',recur:'Weekly'},
+  ],
+  customers: [
+    {id:1,name:'Mehta Optics',owner:'Ramesh Mehta',city:'Ludhiana',area:'Clock Tower',am:'Abhishek Khosla',mobile:'9876543210',wa:'9876543210',gst:'03AABCM1234Z1ZX',pan:'AABCM1234Z',credit:'150000',days:'30',brands:'Ray-Ban / Luxottica',address:'Shop 14, Clock Tower Market, Ludhiana',notes:'Key account. Payment behaviour poor since 2022. Do not extend credit until OD cleared.',since:'2016-03-01',od:124903,lastVisit:'22d ago',sales:'4.2L',years:8},
+    {id:2,name:'Jain Opticals',owner:'Suresh Jain',city:'Ludhiana',area:'Civil Lines',am:'Vikram Dhaliwal',mobile:'9876500001',wa:'9876500001',gst:'03AABCJ5678Z1ZX',pan:'AABCJ5678Z',credit:'100000',days:'30',brands:'Jimmy Choo / Safilo',address:'12 Civil Lines, Ludhiana',notes:'Reliable buyer. Always pays on time.',since:'2019-06-01',od:0,lastVisit:'Today',sales:'2.8L',years:5},
+    {id:3,name:'Arora Vision',owner:'Vijay Arora',city:'Jalandhar',area:'Model Town',am:'Deepak Kumar',mobile:'9876500002',wa:'9876500002',gst:'03AABCA9012Z1ZX',pan:'AABCA9012Z',credit:'80000',days:'30',brands:'Bausch & Lomb',address:'45 Model Town, Jalandhar',notes:'Asking for credit extension. Discuss with Pankajj.',since:'2021-01-15',od:67500,lastVisit:'8d ago',sales:'3.1L',years:3},
+    {id:4,name:'Kapoor Optics',owner:'Anil Kapoor',city:'Patiala',area:'Leela Bhawan',am:'Jatinder Kumar',mobile:'9876500003',wa:'9876500003',gst:'03AABCK3456Z1ZX',pan:'AABCK3456Z',credit:'60000',days:'30',brands:'Burberry',address:'8 Leela Bhawan, Patiala',notes:'New account. Good potential.',since:'2022-04-01',od:0,lastVisit:'3d ago',sales:'1.9L',years:2},
+    {id:5,name:'Singh Opticals',owner:'Gurpreet Singh',city:'Amritsar',area:'Hall Bazar',am:'Vikram Dhaliwal',mobile:'9876500004',wa:'9876500004',gst:'03AABCS7890Z1ZX',pan:'AABCS7890Z',credit:'75000',days:'30',brands:'Ray-Ban / Luxottica',address:'22 Hall Bazar, Amritsar',notes:'Regular buyer. OD 75 days old — needs follow up.',since:'2020-08-20',od:52340,lastVisit:'5d ago',sales:'2.5L',years:4},
+    {id:6,name:'Kumar Vision',owner:'Rajesh Kumar',city:'Bathinda',area:'Goniana Road',am:'Rakesh',mobile:'9876500005',wa:'9876500005',gst:'03AABCK1234Z1ZX',pan:'AABCK1234Z',credit:'50000',days:'30',brands:'Inalsa',address:'67 Goniana Road, Bathinda',notes:'',since:'2023-02-10',od:30000,lastVisit:'12d ago',sales:'1.2L',years:1},
+  ],
+  brandActions: [
+    {brand:'Luxottica',color:'#e8743b',items:[
+      {text:'DMS Sales Upload — March pending',status:'overdue',cls:'b-r'},
+      {text:'Ray-Ban Summer Scheme communicated to dealers',status:'done',cls:'b-g'},
+      {text:'Frame warranty claim #LUX2234 pending',status:'pending',cls:'b-a'},
+    ]},
+    {brand:'Bausch & Lomb',color:'#4fc3f7',items:[
+      {text:'Feb expiry RMA — awaiting HO approval Mumbai',status:'pending',cls:'b-a'},
+      {text:'March reorder placed on portal',status:'done',cls:'b-g'},
+      {text:'New Biotrue launch kit to share with dealers',status:'action',cls:'b-b'},
+    ]},
+    {brand:'Safilo (Jimmy Choo)',color:'#9c6bff',items:[
+      {text:'SS2026 catalog — share with 12 key dealers',status:'action',cls:'b-b'},
+      {text:'Q1 2026 target achieved',status:'done',cls:'b-g'},
+      {text:'3 SKU images still missing from catalog',status:'pending',cls:'b-a'},
+    ]},
+    {brand:'NVG / NVD',color:'#4caf82',items:[
+      {text:'Tally March import completed',status:'done',cls:'b-g'},
+      {text:'2026 price list circulation pending',status:'pending',cls:'b-a'},
+    ]},
+    {brand:'Inalsa / SEB',color:'#f5a623',items:[
+      {text:'March sales report submitted',status:'done',cls:'b-g'},
+      {text:'Summer campaign material received — share with dealers',status:'action',cls:'b-b'},
+    ]},
+    {brand:'Celfrost / Beetel',color:'#e05c5c',items:[
+      {text:'All dealer accounts current',status:'done',cls:'b-g'},
+      {text:'Beetel new model launch — April 2026',status:'watch',cls:'b-a'},
+    ]},
+  ],
+  amProgress: [
+    {name:'Abhishek',collected:310000,target:400000},
+    {name:'Deepak K',collected:240000,target:350000},
+    {name:'Vikram',collected:180000,target:350000},
+    {name:'Jatinder',collected:350000,target:400000},
+    {name:'Rakesh',collected:120000,target:300000},
+  ],
+  checkins: [
+    {am:'Abhishek Khosla',status:'in',visited:4,collected:'₹22K',note:'Vision Plus wants credit extension'},
+    {am:'Deepak Kumar',status:'in',visited:3,collected:'₹18K',note:'No issues'},
+    {am:'Vikram Dhaliwal',status:'in',visited:5,collected:'₹0',note:'Arora Vision requesting rate revision'},
+    {am:'Jatinder Kumar',status:'in',visited:6,collected:'₹35K',note:'No issues'},
+    {am:'Rakesh',status:'pending',visited:0,collected:'—',note:'No update received'},
+  ]
+};
+
+/* ══════════════════════════════════════════════
+   FIREBASE INIT
+══════════════════════════════════════════════ */
+let db, auth;
+function initFirebase(){
+  try{
+    if(FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY' || DEMO_MODE){
+      STATE.demoMode = true; return;
+    }
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    auth = firebase.auth();
+    STATE.demoMode = false;
+  } catch(e){ STATE.demoMode = true; }
+}
+
+/* ══════════════════════════════════════════════
+   AUTH
+══════════════════════════════════════════════ */
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const btn   = document.querySelector('.login-btn');
+  btn.textContent = 'Signing in...'; btn.disabled = true;
+
+  if(STATE.demoMode){
+    // Demo: any email/password works
+    const name = email.split('@')[0] || 'User';
+    STATE.user = {email, name};
+    STATE.role = email.toLowerCase().includes('admin') || email === '' ? 'admin' : 'am';
+    STATE.amName = name;
+    setTimeout(()=>{ launchApp(); }, 600);
+    return;
+  }
+
+  try{
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    const doc = await db.collection('app_users').doc(cred.user.uid).get();
+    const data = doc.exists ? doc.data() : {};
+    STATE.user = cred.user; STATE.role = data.role || 'am'; STATE.amName = data.name || email;
+    launchApp();
+  } catch(e){
+    document.getElementById('login-err').style.display = 'block';
+    btn.textContent = 'Sign In →'; btn.disabled = false;
+  }
+}
+
+function doLogout(){
+  if(!STATE.demoMode && auth) auth.signOut();
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pass').value = '';
+  STATE.user = null;
+}
+
+function launchApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  const app = document.getElementById('app');
+  app.classList.add('visible');
+
+  // Update header
+  const initials = (STATE.amName||'PS').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('user-av').textContent = initials;
+  document.getElementById('hdr-role').textContent = STATE.role === 'admin' ? 'Admin' : STATE.amName;
+  document.getElementById('demo-pill').style.display = STATE.demoMode ? 'block' : 'none';
+
+  // AM role — hide admin-only tabs
+  if(STATE.role === 'am'){
+    document.getElementById('crm-am-filter').value = STATE.amName;
+  }
+
+  setGreeting();
+  loadAll();
+}
+
+/* ══════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════ */
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const map={overview:0,od:1,tasks:2,crm:3,brands:4};
+  document.querySelectorAll('.nav-tab')[map[name]].classList.add('active');
+  STATE.currentPage = name;
+  window.scrollTo(0,0);
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+/* ══════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════ */
+function fmtCurr(n){ if(!n||n===0) return '—'; return '₹'+Number(n).toLocaleString('en-IN'); }
+function fmtCurrShort(n){ if(n>=10000000) return '₹'+(n/10000000).toFixed(1)+'Cr'; if(n>=100000) return '₹'+(n/100000).toFixed(1)+'L'; if(n>=1000) return '₹'+(n/1000).toFixed(0)+'K'; return '₹'+n; }
+function getAgeBadge(age){ const a=parseInt(age); if(a>=150||age==='150+') return '<span class="badge b-r">150+ days</span>'; if(a>=90) return '<span class="badge b-r">'+age+' days</span>'; if(a>=60) return '<span class="badge b-a">'+age+' days</span>'; if(a>=30) return '<span class="badge b-a">'+age+' days</span>'; return '<span class="badge b-g">'+age+' days</span>'; }
+function getPriBadge(p){ if(p==='critical') return '<span class="badge b-r">Critical</span>'; if(p==='urgent') return '<span class="badge b-a">Urgent</span>'; return '<span class="badge b-gr">Normal</span>'; }
+function getInitials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase(); }
+function getAvatarColor(n){ const colors=['#185FA5','#3B6D11','#854F0B','#534AB7','#A32D2D','#0F6E56']; let h=0; for(let c of (n||'')) h=c.charCodeAt(0)+((h<<5)-h); return colors[Math.abs(h)%colors.length]; }
+
+function setGreeting(){
+  const h = new Date().getHours();
+  const name = STATE.role==='admin'?'Pankajj':(STATE.amName||'').split(' ')[0];
+  document.getElementById('greeting').textContent = (h<12?'Good morning':h<17?'Good afternoon':'Good evening')+', '+name+' 👋';
+  const now = new Date();
+  document.getElementById('overview-sub').textContent = now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('checkin-date').textContent = now.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  const mn = now.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  document.getElementById('ov-month').textContent = mn;
+}
+
+/* ══════════════════════════════════════════════
+   LOAD ALL DATA
+══════════════════════════════════════════════ */
+function loadAll(){
+  if(STATE.demoMode){
+    STATE.odData = [...DEMO.odData];
+    STATE.tasks = [...DEMO.tasks];
+    STATE.customers = [...DEMO.customers];
+    STATE.brandActions = [...DEMO.brandActions];
+  } else {
+    loadFirestoreData();
+  }
+  renderAll();
+}
+
+async function loadFirestoreData(){
+  // OD data from settings/od_data (same as existing OD app)
+  const odDoc = await db.collection('settings').doc('od_data').get();
+  if(odDoc.exists) STATE.odData = odDoc.data().rows || [];
+
+  // Tasks
+  const tasksSnap = await db.collection('tasks').where('date','==',getTodayStr()).get();
+  STATE.tasks = tasksSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  // Customers
+  const custSnap = await db.collection('customers').get();
+  STATE.customers = custSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  renderAll();
+}
+
+function getTodayStr(){ return new Date().toISOString().split('T')[0]; }
+
+function renderAll(){
+  renderOverview();
+  renderOD();
+  renderTasks();
+  renderCRM();
+  renderBrands();
+}
+
+/* ══════════════════════════════════════════════
+   OVERVIEW
+══════════════════════════════════════════════ */
+function renderOverview(){
+  // KPIs
+  const totalOD = STATE.odData.reduce((s,r)=>s+(r.total||0),0);
+  const overdueCount = STATE.odData.filter(r=>parseInt(r.age)>=30||r.age==='150+').length;
+  document.getElementById('ov-od').textContent = fmtCurrShort(totalOD);
+  document.getElementById('ov-od-sub').textContent = overdueCount+' dealers overdue';
+  document.getElementById('ov-dealers').textContent = STATE.customers.length || 503;
+
+  const done = STATE.tasks.filter(t=>t.status==='done').length;
+  const total = STATE.tasks.length;
+  document.getElementById('ov-tasks').textContent = done+'/'+total;
+
+  // Critical OD table
+  const critical = STATE.odData.filter(r=>parseInt(r.total)>50000).slice(0,4);
+  const tbody = document.getElementById('ov-od-body');
+  tbody.innerHTML = critical.map(r=>`
+    <tr onclick="showWAForDealer(${r.id})">
+      <td><b>${r.dealer}</b></td>
+      <td style="color:var(--red);font-weight:600">${fmtCurr(r.total)}</td>
+      <td>${getAgeBadge(r.age)}</td>
+      <td><button class="wa-btn" onclick="event.stopPropagation();showWAForDealer(${r.id})">📱 WA</button></td>
+    </tr>`).join('');
+
+  // Tasks list
+  const taskHtml = STATE.tasks.slice(0,5).map(t=>`
+    <div class="task-item">
+      <div class="task-check ${t.status==='done'?'done':''}" onclick="toggleTask(${t.id})">${t.status==='done'?'✓':''}</div>
+      <div style="flex:1">
+        <div class="task-text ${t.status==='done'?'done':''}">${t.desc}</div>
+        <div class="task-meta">${t.am} · ${t.priority==='critical'?'<span style="color:var(--red)">Critical</span>':t.priority==='urgent'?'<span style="color:var(--accent)">Urgent</span>':'Normal'}</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('ov-tasks-list').innerHTML = taskHtml || '<div class="empty-state"><span class="es-icon">✅</span><p>No tasks today</p></div>';
+
+  // AM Progress
+  const progHtml = DEMO.amProgress.map(a=>{
+    const pct = Math.min(100,Math.round(a.collected/a.target*100));
+    const color = pct>=80?'var(--green)':pct>=50?'var(--accent)':'var(--red)';
+    return `<div class="prog-row">
+      <div class="prog-name" style="font-size:12px">${a.name}</div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="prog-val" style="color:${color}">${fmtCurrShort(a.collected)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('ov-am-prog').innerHTML = progHtml;
+
+  // Brand alerts
+  const alerts = [{text:'Luxottica DMS upload pending',color:'var(--red)',cls:'b-r'},{text:'B&L RMA approval awaited from HO',color:'var(--accent)',cls:'b-a'},{text:'Jimmy Choo SS2026 — share catalog',color:'var(--blue)',cls:'b-b'}];
+  document.getElementById('ov-brand-alerts').innerHTML = alerts.map(a=>`
+    <div class="alert-row">
+      <div class="alert-dot" style="background:${a.color}"></div>
+      <div class="alert-text">${a.text}</div>
+      <span class="badge ${a.cls}">${a.cls==='b-r'?'Overdue':a.cls==='b-a'?'Pending':'Action'}</span>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════
+   OD COLLECTIONS
+══════════════════════════════════════════════ */
+let odFiltered = [];
+
+function renderOD(data){
+  odFiltered = data || STATE.odData;
+  const tbody = document.getElementById('od-body');
+  tbody.innerHTML = odFiltered.map(r=>`
+    <tr>
+      <td><input type="checkbox" class="od-check" data-id="${r.id}" onchange="updateBulkCount()"></td>
+      <td><b>${r.dealer}</b></td>
+      <td><span class="tag">${r.am||'—'}</span></td>
+      <td><span class="tag">${r.brand||'—'}</span></td>
+      <td style="font-size:11px">${r.d0?fmtCurrShort(r.d0):'—'}</td>
+      <td style="font-size:11px">${r.d30?fmtCurrShort(r.d30):'—'}</td>
+      <td style="font-size:11px">${r.d60?fmtCurrShort(r.d60):'—'}</td>
+      <td style="font-size:11px;color:var(--red)">${r.d90?fmtCurrShort(r.d90):'—'}</td>
+      <td style="font-weight:600;color:${r.total>50000?'var(--red)':'var(--accent)'}">${fmtCurr(r.total)}</td>
+      <td>${getAgeBadge(r.age)}</td>
+      <td><button class="wa-btn" onclick="showWAForDealer(${r.id})">📱 WA</button></td>
+    </tr>`).join('');
+  document.getElementById('od-badge').textContent = odFiltered.length;
+}
+
+function filterOD(q){ renderOD(STATE.odData.filter(r=>r.dealer.toLowerCase().includes(q.toLowerCase()))); }
+function filterODByAM(am){ renderOD(am?STATE.odData.filter(r=>r.am===am):STATE.odData); }
+function filterODByAge(days){ renderOD(days?STATE.odData.filter(r=>parseInt(r.age)>=parseInt(days)||r.age==='150+'):STATE.odData); }
+function toggleSelectAll(cb){ document.querySelectorAll('.od-check').forEach(c=>c.checked=cb.checked); }
+function updateBulkCount(){}
+
+let currentWADealer = null;
+function showWAForDealer(id){
+  const r = STATE.odData.find(x=>x.id===id);
+  if(!r) return;
+  currentWADealer = r;
+  const msg = generateWAMsg(r.dealer, r.total, r.age, r.am);
+  document.getElementById('wa-msg-text').textContent = msg;
+  const box = document.getElementById('wa-box');
+  box.style.display = 'block';
+  box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function generateWAMsg(dealer, amount, age, am){
+  return `Dear *${dealer}* 🙏
+
+This is a friendly reminder from *Barnala Trading Co. (BTC)*, Barnala/Ludhiana.
+
+Your outstanding amount of *${fmtCurr(amount)}* has been pending for *${age} days*.
+
+Kindly arrange payment at the earliest to avoid disruption to future supplies.
+
+For any query, please call us directly.
+
+Regards,
+*Pankajj Singlaa*
+Barnala Trading Co.
+📞 +91 XXXXX XXXXX`;
+}
+
+function copyWAMsg(){
+  const txt = document.getElementById('wa-msg-text').textContent;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn = event.target;
+    btn.textContent = '✓ Copied!';
+    setTimeout(()=>btn.textContent='📋 Copy',2000);
+  });
+}
+
+function openWhatsApp(){
+  if(!currentWADealer) return;
+  const msg = encodeURIComponent(document.getElementById('wa-msg-text').textContent);
+  const phone = (currentWADealer.phone||'').replace(/\D/g,'');
+  const url = phone ? `https://wa.me/91${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+  window.open(url,'_blank');
+}
+
+function markWASent(){
+  STATE.waCount++;
+  document.getElementById('wa-sent-count').textContent = STATE.waCount;
+  document.getElementById('wa-box').style.display = 'none';
+  if(!STATE.demoMode && db && currentWADealer){
+    db.collection('followups').add({dealer:currentWADealer.dealer,type:'whatsapp',date:new Date(),sentBy:STATE.amName});
+  }
+}
+
+function openWABulk(){
+  const checked = [...document.querySelectorAll('.od-check:checked')];
+  if(checked.length===0){ alert('Please select at least one dealer first'); return; }
+  alert(`Ready to send WA to ${checked.length} dealer(s). In the live version this will open WhatsApp for each.`);
+}
+
+/* ══════════════════════════════════════════════
+   TASKS
+══════════════════════════════════════════════ */
+function renderTasks(data){
+  const tasks = data || STATE.tasks;
+  const done = tasks.filter(t=>t.status==='done').length;
+  const pending = tasks.filter(t=>t.status==='pending').length;
+  const overdue = tasks.filter(t=>t.status==='overdue').length;
+  document.getElementById('tasks-done').textContent = done;
+  document.getElementById('tasks-pending').textContent = pending;
+  document.getElementById('tasks-overdue').textContent = overdue;
+  document.getElementById('task-badge').textContent = pending+overdue;
+
+  const listEl = document.getElementById('tasks-list');
+  listEl.innerHTML = tasks.map(t=>`
+    <div class="task-item">
+      <div class="task-check ${t.status==='done'?'done':''}" onclick="toggleTask(${t.id})">${t.status==='done'?'✓':''}</div>
+      <div style="flex:1">
+        <div class="task-text ${t.status==='done'?'done':''}">${t.desc}</div>
+        <div class="task-meta">${t.am||''}${t.dealer?' · '+t.dealer:''} · ${t.type||''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+        ${getPriBadge(t.priority)}
+        ${t.status==='done'?'<span class="badge b-g" style="font-size:9px">Done</span>':''}
+      </div>
+    </div>`).join('') || '<div class="empty-state"><span class="es-icon">✅</span><p>All done!</p></div>';
+
+  // Check-in list
+  const ciEl = document.getElementById('checkin-list');
+  ciEl.innerHTML = DEMO.checkins.map(c=>`
+    <div class="alert-row">
+      <div class="alert-dot ${c.status==='in'?'':'pulse'}" style="background:${c.status==='in'?'var(--green)':'var(--red)'}"></div>
+      <div style="flex:1">
+        <div style="font-size:12.5px;font-weight:500">${c.am}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${c.status==='in'?'Visited: '+c.visited+' · Collected: '+c.collected+' · '+c.note:'No check-in received'}</div>
+      </div>
+      <span class="badge ${c.status==='in'?'b-g':'b-r'}">${c.status==='in'?'In':'Pending'}</span>
+    </div>`).join('');
+
+  // AM Progress
+  const progEl = document.getElementById('am-progress');
+  progEl.innerHTML = DEMO.amProgress.map(a=>{
+    const pct = Math.min(100,Math.round(a.collected/a.target*100));
+    const color = pct>=80?'var(--green)':pct>=50?'var(--accent)':'var(--red)';
+    return `<div class="prog-row">
+      <div class="prog-name">${a.name}</div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="prog-val" style="color:${color}">${fmtCurrShort(a.collected)}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterTasksByAM(am){ renderTasks(am?STATE.tasks.filter(t=>t.am.includes(am)):STATE.tasks); }
+
+function toggleTask(id){
+  const t = STATE.tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.status = t.status==='done'?'pending':'done';
+  if(!STATE.demoMode && db){ db.collection('tasks').doc(String(id)).update({status:t.status}); }
+  renderTasks(); renderOverview();
+}
+
+function openTaskModal(){
+  document.getElementById('task-due').value = getTodayStr();
+  openModal('task-modal');
+}
+
+function saveTask(){
+  const t = {
+    id: Date.now(),
+    am: document.getElementById('task-am').value,
+    desc: document.getElementById('task-desc').value,
+    dealer: document.getElementById('task-dealer').value,
+    brand: document.getElementById('task-brand').value,
+    type: document.getElementById('task-type').value,
+    priority: document.getElementById('task-priority').value,
+    due: document.getElementById('task-due').value,
+    recur: document.getElementById('task-recur').value,
+    status: 'pending', date: getTodayStr(),
+  };
+  if(!t.am||!t.desc){ alert('Please fill AM and task description'); return; }
+  STATE.tasks.unshift(t);
+  if(!STATE.demoMode && db){ db.collection('tasks').add(t); }
+  closeModal('task-modal');
+  renderTasks(); renderOverview();
+  // Clear form
+  ['task-am','task-desc','task-dealer','task-brand','task-type','task-priority','task-recur'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=el.tagName==='SELECT'?el.options[0].value:''; });
+}
+
+/* ══════════════════════════════════════════════
+   CRM
+══════════════════════════════════════════════ */
+function renderCRM(data){
+  const custs = data || STATE.customers;
+  document.getElementById('crm-total').textContent = custs.length;
+  document.getElementById('crm-new').textContent = custs.filter(c=>c.since && new Date(c.since)>new Date(Date.now()-30*86400000)).length;
+  document.getElementById('crm-od').textContent = custs.filter(c=>c.od>0).length;
+  document.getElementById('crm-unvisited').textContent = custs.filter(c=>c.lastVisit&&c.lastVisit.includes('d')&&parseInt(c.lastVisit)>=30).length;
+
+  const grid = document.getElementById('crm-grid');
+  if(custs.length===0){ grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><span class="es-icon">🤝</span><p>No customers yet. Add your first dealer.</p></div>'; return; }
+
+  grid.innerHTML = custs.map(c=>{
+    const col = getAvatarColor(c.name);
+    const od = c.od>0;
+    return `<div class="dealer-card" onclick="openProfile(${c.id})">
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
+        <div style="width:36px;height:36px;border-radius:50%;background:${col}22;border:1px solid ${col}44;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:${col};flex-shrink:0">${getInitials(c.name)}</div>
+        <div style="flex:1">
+          <div class="dealer-name">${c.name}</div>
+          <div class="dealer-city">${c.city||'—'} · <span class="tag">${(c.am||'').split(' ')[0]}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+          ${od?`<span class="badge b-r">OD ${fmtCurrShort(c.od)}</span>`:'<span class="badge b-g">Clear</span>'}
+          <span class="badge b-gr" style="font-size:9px">${(c.brands||'').split('/')[0].trim()}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px">
+        <div style="padding:6px;text-align:center;border-right:1px solid var(--border)"><div style="font-size:12px;font-weight:600">${c.sales||'—'}</div><div style="font-size:9px;color:var(--text3)">Yr Sales</div></div>
+        <div style="padding:6px;text-align:center;border-right:1px solid var(--border)"><div style="font-size:12px;font-weight:600;color:${c.lastVisit==='Today'?'var(--green)':c.lastVisit&&parseInt(c.lastVisit)>15?'var(--red)':'var(--accent)'}">${c.lastVisit||'—'}</div><div style="font-size:9px;color:var(--text3)">Last Visit</div></div>
+        <div style="padding:6px;text-align:center"><div style="font-size:12px;font-weight:600">${c.years||'—'}y</div><div style="font-size:9px;color:var(--text3)">Assoc.</div></div>
+      </div>
+      <div class="dealer-actions">
+        <button class="d-btn" onclick="event.stopPropagation();callDealer('${c.mobile}')">📞 Call</button>
+        <button class="d-btn wa" onclick="event.stopPropagation();waDealer('${c.wa}','${c.name}')">📱 WA</button>
+        <button class="d-btn" onclick="event.stopPropagation();openProfile(${c.id})">👤 KYC</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterCRM(q){ renderCRM(q?STATE.customers.filter(c=>(c.name+c.city+c.mobile+c.gst+c.owner).toLowerCase().includes(q.toLowerCase())):STATE.customers); }
+function filterCRMByAM(am){ renderCRM(am?STATE.customers.filter(c=>(c.am||'').includes(am)):STATE.customers); }
+function filterCRMByBrand(b){ renderCRM(b?STATE.customers.filter(c=>(c.brands||'').includes(b)):STATE.customers); }
+function filterCRMByCity(city){ renderCRM(city?STATE.customers.filter(c=>c.city===city):STATE.customers); }
+function callDealer(mob){ if(mob) window.location.href='tel:+91'+mob.replace(/\D/g,''); }
+function waDealer(wa,name){ const msg=encodeURIComponent('Dear *'+name+'*,\n\nGreetings from Barnala Trading Co. (BTC)!\n\n— Pankajj Singlaa'); window.open('https://wa.me/91'+(wa||'').replace(/\D/g,'')+`?text=${msg}`,'_blank'); }
+
+function openProfile(id){
+  const c = STATE.customers.find(x=>x.id===id);
+  if(!c) return;
+  const col = getAvatarColor(c.name);
+  document.getElementById('profile-modal-title').textContent = c.name;
+  document.getElementById('profile-content').innerHTML = `
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;gap:12px;align-items:flex-start">
+      <div style="width:48px;height:48px;border-radius:50%;background:${col}22;border:1px solid ${col}44;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${col};flex-shrink:0">${getInitials(c.name)}</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:600;margin-bottom:3px">${c.name}</div>
+        <div style="font-size:11px;color:var(--text2)">${c.city||''} · ${c.am||''} · ${c.years||'—'} years</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
+          ${c.od>0?`<span class="badge b-r">OD ${fmtCurr(c.od)}</span>`:'<span class="badge b-g">No OD</span>'}
+          <span class="badge b-gr">${c.brands||'—'}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="wa-btn" style="padding:6px 10px" onclick="waDealer('${c.wa}','${c.name}')">📱 WA</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px" onclick="callDealer('${c.mobile}')">📞 Call</button>
+      </div>
+    </div>
+    <div class="prof-tabs">
+      <button class="prof-tab active" id="pt-1" onclick="showProfTab(1,${c.id})">KYC Details</button>
+      <button class="prof-tab" id="pt-2" onclick="showProfTab(2,${c.id})">OD & Payments</button>
+      <button class="prof-tab" id="pt-3" onclick="showProfTab(3,${c.id})">Visit Log</button>
+    </div>
+    <div id="prof-tab-body" style="padding:16px 18px">${getProfTabContent(1,c)}</div>
+  `;
+  openModal('profile-modal');
+}
+
+function showProfTab(n,id){
+  const c = STATE.customers.find(x=>x.id===id);
+  for(let i=1;i<=3;i++){ const el=document.getElementById('pt-'+i); if(el) el.className='prof-tab'+(i===n?' active':''); }
+  document.getElementById('prof-tab-body').innerHTML = getProfTabContent(n,c);
+}
+
+function getProfTabContent(n,c){
+  if(n===1) return `
+    <div class="info-section">
+      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Basic Info</div>
+      <div class="info-grid">
+        <div class="info-item"><div class="info-lbl">Owner Name</div><div class="info-val">${c.owner||'—'}</div></div>
+        <div class="info-item"><div class="info-lbl">Mobile</div><div class="info-val" style="color:var(--accent)">${c.mobile||'—'}</div></div>
+        <div class="info-item"><div class="info-lbl">City / Area</div><div class="info-val">${c.city||'—'}, ${c.area||'—'}</div></div>
+        <div class="info-item"><div class="info-lbl">WhatsApp</div><div class="info-val">${c.wa||'—'}</div></div>
+        <div class="info-item" style="grid-column:1/-1"><div class="info-lbl">Address</div><div class="info-val">${c.address||'—'}</div></div>
+      </div>
+    </div>
+    <div class="info-section" style="margin-top:14px">
+      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Business Details</div>
+      <div class="info-grid">
+        <div class="info-item"><div class="info-lbl">GST Number</div><div class="info-val" style="font-family:monospace;font-size:12px">${c.gst||'—'}</div></div>
+        <div class="info-item"><div class="info-lbl">PAN Number</div><div class="info-val" style="font-family:monospace;font-size:12px">${c.pan||'—'}</div></div>
+        <div class="info-item"><div class="info-lbl">Credit Limit</div><div class="info-val">${fmtCurr(c.credit)||'—'}</div></div>
+        <div class="info-item"><div class="info-lbl">Credit Days</div><div class="info-val">${c.days||'—'} days</div></div>
+        <div class="info-item"><div class="info-lbl">Customer Since</div><div class="info-val">${c.since?new Date(c.since).toLocaleDateString('en-IN',{month:'short',year:'numeric'}):'—'}</div></div>
+        <div class="info-item"><div class="info-lbl">Brands</div><div class="info-val">${c.brands||'—'}</div></div>
+      </div>
+    </div>
+    ${c.notes?`<div style="margin-top:14px"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Internal Notes</div><div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.7">${c.notes}</div></div>`:''}
+  `;
+  if(n===2) return `
+    <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px">Outstanding Dues</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-lbl">Total OD</div><div class="info-val" style="color:${c.od>0?'var(--red)':'var(--green)'}">${c.od>0?fmtCurr(c.od):'Clear'}</div></div>
+      <div class="info-item"><div class="info-lbl">Credit Limit</div><div class="info-val">${fmtCurr(c.credit)||'—'}</div></div>
+      <div class="info-item"><div class="info-lbl">Yearly Sales</div><div class="info-val">${c.sales||'—'}</div></div>
+      <div class="info-item"><div class="info-lbl">Last Payment</div><div class="info-val">—</div></div>
+    </div>
+    ${c.od>0?`<div style="margin-top:12px"><button class="wa-btn" style="padding:8px 14px;font-size:12px" onclick="waDealer('${c.wa}','${c.name}')">📱 Send Payment Reminder on WA</button></div>`:'<div style="color:var(--green);font-size:12px;margin-top:8px">✓ No outstanding dues</div>'}
+  `;
+  if(n===3) return `
+    <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:12px">Visit & Contact History</div>
+    <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-text"><b>Last visit</b> — ${c.lastVisit||'No data'}</div></div>
+    <div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div class="tl-text"><b>Customer since</b> — ${c.since?new Date(c.since).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}):'—'} (${c.years||'—'} years)</div></div>
+    <div style="margin-top:14px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Add visit note</div>
+      <textarea class="form-textarea" placeholder="e.g. Visited today, discussed new Ray-Ban collection. Owner interested in 6 pcs RB3025..." style="width:100%;margin-bottom:8px"></textarea>
+      <button class="btn btn-primary" style="font-size:12px">Save Note</button>
+    </div>
+  `;
+  return '';
+}
+
+function openCustomerModal(){ openModal('customer-modal'); }
+
+function saveCustomer(){
+  const c = {
+    id: Date.now(),
+    name: document.getElementById('cust-name').value,
+    owner: document.getElementById('cust-owner').value,
+    mobile: document.getElementById('cust-mobile').value,
+    wa: document.getElementById('cust-wa').value || document.getElementById('cust-mobile').value,
+    city: document.getElementById('cust-city').value,
+    area: document.getElementById('cust-area').value,
+    gst: document.getElementById('cust-gst').value.toUpperCase(),
+    pan: document.getElementById('cust-pan').value.toUpperCase(),
+    am: document.getElementById('cust-am').value,
+    credit: document.getElementById('cust-credit').value.replace(/,/g,''),
+    days: document.getElementById('cust-days').value,
+    since: document.getElementById('cust-since').value,
+    brands: document.getElementById('cust-brands').value,
+    address: document.getElementById('cust-address').value,
+    notes: document.getElementById('cust-notes').value,
+    od: 0, lastVisit: '—', sales: '—', years: 0,
+  };
+  if(!c.name){ alert('Firm name is required'); return; }
+  STATE.customers.unshift(c);
+  if(!STATE.demoMode && db){ db.collection('customers').add(c); }
+  closeModal('customer-modal');
+  renderCRM();
+  // Clear
+  ['cust-name','cust-owner','cust-mobile','cust-wa','cust-city','cust-area','cust-gst','cust-pan','cust-credit','cust-days','cust-since','cust-address','cust-notes'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+}
+
+/* ══════════════════════════════════════════════
+   BRANDS
+══════════════════════════════════════════════ */
+function renderBrands(){
+  const grid = document.getElementById('brands-grid');
+  grid.innerHTML = STATE.brandActions.map(b=>`
+    <div class="sec-card">
+      <div class="sec-head">
+        <span class="sec-title" style="color:${b.color}">● ${b.brand}</span>
+        <button class="btn btn-secondary" style="font-size:10px;padding:3px 8px" onclick="addBrandAction('${b.brand}')">+ Add</button>
+      </div>
+      ${b.items.map(item=>`
+        <div class="alert-row" style="cursor:pointer" onclick="toggleBrandItem(this)">
+          <div class="alert-dot" style="background:${item.cls==='b-r'?'var(--red)':item.cls==='b-g'?'var(--green)':item.cls==='b-b'?'var(--blue)':'var(--accent)'}"></div>
+          <div class="alert-text">${item.text}</div>
+          <span class="badge ${item.cls}">${item.status==='overdue'?'Overdue':item.status==='done'?'Done':item.status==='action'?'Action':'Pending'}</span>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function toggleBrandItem(row){
+  const badge = row.querySelector('.badge');
+  if(badge.textContent==='Done') return;
+  if(confirm('Mark this item as done?')){
+    badge.textContent='Done';
+    badge.className='badge b-g';
+    row.querySelector('.alert-dot').style.background='var(--green)';
+  }
+}
+
+function addBrandAction(brand){ alert('Add action for '+brand+' — in full version this opens a form to log a new brand follow-up item.'); }
+
+/* ══════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+══════════════════════════════════════════════ */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.modal-bg.open').forEach(m=>m.classList.remove('open'));
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT') return;
+  if(e.key==='1') showPage('overview');
+  if(e.key==='2') showPage('od');
+  if(e.key==='3') showPage('tasks');
+  if(e.key==='4') showPage('crm');
+  if(e.key==='5') showPage('brands');
+  if(e.key==='t'||e.key==='T') { showPage('tasks'); openTaskModal(); }
+  if(e.key==='c'||e.key==='C') { showPage('crm'); openCustomerModal(); }
+});
+
+/* Enter key on login */
+document.addEventListener('DOMContentLoaded',()=>{
+  ['login-email','login-pass'].forEach(id=>{
+    document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+  });
+  const today = new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  if(document.getElementById('overview-sub')) document.getElementById('overview-sub').textContent = today;
+  initFirebase();
+});
+</script>
+</body>
+</html>
